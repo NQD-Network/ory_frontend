@@ -13,8 +13,8 @@ const HYDRA_AUTH_URL = import.meta.env.VITE_HYDRA_AUTH_URL
 const HYDRA_USERINFO_URL = import.meta.env.VITE_HYDRA_USERINFO_URL
 const GO_API_BASE = import.meta.env.VITE_GO_API_BASE
 
-let redirectUri = "http://localhost:3000/" // default fallback
 try {
+  let redirectUri = "http://localhost:3000/" // default fallback
   const refUrl = new URL(document.referrer)
   const refParams = new URLSearchParams(refUrl.search)
   const returnTo = refParams.get("return_to")
@@ -89,7 +89,7 @@ function decodeJWT(token: string) {
 function App({ msg }: AppProps) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const [hydraTokens, setHydraTokens] = useState<any>(null)
+  const [hydraTokens] = useState<any>(null)
   const [users, setUsers] = useState<any>(null)
   const [hydraUserInfo, setHydraUserInfo] = useState<any>(null) // 🔥 Userinfo state
 

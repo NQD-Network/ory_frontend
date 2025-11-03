@@ -149,7 +149,6 @@ const handleGoogleLogin = async () => {
     });
 
     const data = await res.json();
-console.log("Google login response:", data);
     // ✅ Perform redirect
     const redirectUrl =
       data.redirect_browser_to || data.error?.redirect_browser_to;
@@ -206,14 +205,14 @@ console.log("Google login response:", data);
             </button>
           </p>
 
-          {/* <button
+          <button
             type="button"
             className="btn-secondary"
             onClick={handleGoogleLogin}
             disabled={loading}
           >
             {loading ? "Redirecting..." : "Sign in with google"}
-          </button> */}
+          </button>
         </div>
       </div>
     )
