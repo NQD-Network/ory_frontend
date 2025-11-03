@@ -14,14 +14,12 @@ const HYDRA_USERINFO_URL = import.meta.env.VITE_HYDRA_USERINFO_URL
 const GO_API_BASE = import.meta.env.VITE_GO_API_BASE
 
 try {
-  let redirectUri = "http://localhost:3000/" // default fallback
   const refUrl = new URL(document.referrer)
   const refParams = new URLSearchParams(refUrl.search)
   const returnTo = refParams.get("return_to")
 
   if (returnTo) {
     const decodedReturnTo = decodeURIComponent(returnTo)
-    redirectUri = decodedReturnTo
     localStorage.setItem("redirect_uri", decodedReturnTo)
     console.log("✅ Extracted return_to:", decodedReturnTo)
   } else {
