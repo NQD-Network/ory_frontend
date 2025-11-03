@@ -87,7 +87,7 @@ export default function Login() {
           setFlow(res)
         } else {
           // No flow ID → start browser login flow
-          window.location.href = `${KRATOS_BASE}/self-service/login/browser`
+          window.location.href = `${KRATOS_BASE}/self-service/login/browser?return_to=${encodeURIComponent(returnTo)}`
         }
       } catch (err) {
         console.error("Error initializing login flow:", err)

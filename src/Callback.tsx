@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
-const HYDRA_PUBLIC_URL = "http://localhost:4444"
-const HYDRA_CLIENT_ID = "my-frontend"
-const HYDRA_REDIRECT_URI = "http://localhost:5173/callback"
+const HYDRA_PUBLIC_URL = import.meta.env.VITE_HYDRA_PUBLIC_URL
+const HYDRA_CLIENT_ID = import.meta.env.VITE_HYDRA_CLIENT_ID || "my-frontend"
+const HYDRA_REDIRECT_URI = import.meta.env.VITE_HYDRA_REDIRECT_URI
 
 export default function Callback() {
   const [loading, setLoading] = useState(true)

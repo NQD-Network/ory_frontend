@@ -7,11 +7,29 @@ interface AppProps {
 }
 
 const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "/kratos"
-const HYDRA_CLIENT_ID = "my-frontend"
-const HYDRA_REDIRECT_URI = "http://localhost:5173/callback"
-const HYDRA_AUTH_URL = "http://localhost:4444/oauth2/auth"
-const HYDRA_USERINFO_URL = "http://localhost:4444/userinfo" // 🔥 Hydra UserInfo
-const GO_API_BASE = "http://localhost:4455"
+const HYDRA_CLIENT_ID = import.meta.env.VITE_HYDRA_CLIENT_ID
+const HYDRA_REDIRECT_URI = import.meta.env.VITE_HYDRA_REDIRECT_URI
+const HYDRA_AUTH_URL = import.meta.env.VITE_HYDRA_AUTH_URL
+const HYDRA_USERINFO_URL = import.meta.env.VITE_HYDRA_USERINFO_URL
+const GO_API_BASE = import.meta.env.VITE_GO_API_BASE
+
+let redirectUri = "http://localhost:3000/" // default fallback
+try {
+  const refUrl = new URL(document.referrer)
+  const refParams = new URLSearchParams(refUrl.search)
+  const returnTo = refParams.get("return_to")
+
+  if (returnTo) {
+    const decodedReturnTo = decodeURIComponent(returnTo)
+    redirectUri = decodedReturnTo
+    localStorage.setItem("redirect_uri", decodedReturnTo)
+    console.log("✅ Extracted return_to:", decodedReturnTo)
+  } else {
+    console.log("⚠️ No return_to found in referrer. Using default redirect.")
+  }
+} catch (err) {
+  console.warn("Error parsing referrer:", err)
+}
 
 const ory = new FrontendApi(
   new Configuration({ basePath: KRATOS_BASE, credentials: "include" })
@@ -42,7 +60,7 @@ async function refreshAccessToken(refreshToken: string) {
   data.append("refresh_token", refreshToken)
   data.append("client_id", HYDRA_CLIENT_ID)
 
-  const resp = await fetch("http://localhost:4444/oauth2/token", {
+  const resp = await fetch(`${HYDRA_AUTH_URL}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: data.toString()
@@ -143,11 +161,11 @@ function App({ msg }: AppProps) {
         }
 
         // ✅ Step 3: Redirect with updated credentials
-        window.location.href = `http://localhost:3000/profile?access_token=${validAccessToken}&id_token=${id_token}&refresh_token=${refresh_token}`
+        // 🔸 Use dynamic redirect URI from localStorage
+        const savedRedirectUri = localStorage.getItem("redirect_uri") || "http://localhost:3000/"
+        window.location.href = `${savedRedirectUri}?access_token=${validAccessToken}&id_token=${id_token}&refresh_token=${refresh_token}`
         return
       }
-
-
     } catch (err) {
       console.warn("No active Kratos session:", err)
       window.location.href = "/kratos/self-service/login/browser"
