@@ -1,51 +1,50 @@
-import { defineConfig } from "vite"
+import { defineConfig, loadEnv } from "vite"
 import react from "@vitejs/plugin-react"
 import { fileURLToPath, URL } from "url"
 
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
-  server: {
-    port: 5173,
-    cors: true, // 🔹 Enable CORS for dev server
-    proxy: {
-      // Hydra Admin API
-      "/hydra-admin": {
-        target: "http://localhost:4445",
-        changeOrigin: true,
-        secure: false,       // 🔹 In case Hydra Admin uses self-signed cert
-        rewrite: (path) => path.replace(/^\/hydra-admin/, ""),
-        // configure: (proxy, options) => {
-        //   proxy.on("proxyReq", (proxyReq, req, res) => {
-        //     // Optional: log outgoing requests
+export default defineConfig(({ mode }) => {
+  // Load env variables based on current mode (e.g. development or production)
+  const env = loadEnv(mode, process.cwd(), "")
 
-        //   })
-        // },
-      },
+  // Extract URLs from .env file
+  const KRATOS_URL = env.VITE_ORY_SDK_URL || "http://localhost:4433"
+  const HYDRA_ADMIN_URL = env.VITE_HYDRA_ADMIN_URL || "http://localhost:4445"
+  const HYDRA_PUBLIC_URL = env.VITE_HYDRA_PUBLIC_URL || "http://localhost:4444"
 
-      // Kratos public API
-      "/kratos": {
-        target: "http://localhost:4433",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/kratos/, ""),
-      },
-
-      // Hydra Public API (for /oauth2/token)
-      "/public-hydra": {
-        target: "http://localhost:4444",
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/public-hydra/, ""),
-        // configure: (proxy) => {
-        //   proxy.on("proxyReq", (proxyReq, req) => {
-        //     console.log("➡ Proxying request:", req.url)
-        //   })
-        // }
+  return {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
-  },
+    server: {
+      port: 5173,
+      cors: true,
+      proxy: {
+        // Hydra Admin API
+        "/hydra-admin": {
+          target: HYDRA_ADMIN_URL,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/hydra-admin/, ""),
+        },
+
+        // Kratos public API
+        "/kratos": {
+          target: KRATOS_URL,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/kratos/, ""),
+        },
+
+        // Hydra Public API
+        "/public-hydra": {
+          target: HYDRA_PUBLIC_URL,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/public-hydra/, ""),
+        },
+      },
+    },
+  }
 })
