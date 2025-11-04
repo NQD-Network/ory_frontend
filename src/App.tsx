@@ -138,7 +138,7 @@ function App({ msg }: AppProps) {
             } catch (err) {
               console.error("Token refresh failed:", err)
               localStorage.clear()
-              window.location.href = "/kratos/self-service/login/browser"
+              window.location.href = `${KRATOS_BASE}/self-service/login/browser`
               return
             }
           }
@@ -166,7 +166,7 @@ function App({ msg }: AppProps) {
       }
     } catch (err) {
       console.warn("No active Kratos session:", err)
-      window.location.href = "/kratos/self-service/login/browser"
+      window.location.href = `${KRATOS_BASE}/self-service/login/browser`
       setSession(null)
     }
   }
