@@ -160,7 +160,7 @@ function App({ msg }: AppProps) {
 
         // ✅ Step 3: Redirect with updated credentials
         // 🔸 Use dynamic redirect URI from localStorage
-        const savedRedirectUri = localStorage.getItem("redirect_uri") || "http://localhost:3000/"
+        const savedRedirectUri = localStorage.getItem("redirect_uri") || "https://nqd.ai/"
         window.location.href = `${savedRedirectUri}?access_token=${validAccessToken}&id_token=${id_token}&refresh_token=${refresh_token}`
         return
       }

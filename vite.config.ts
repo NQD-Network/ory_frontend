@@ -7,9 +7,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
 
   // Extract URLs from .env file
-  const KRATOS_URL = env.VITE_ORY_SDK_URL || "http://localhost:4433"
-  const HYDRA_ADMIN_URL = env.VITE_HYDRA_ADMIN_URL || "http://localhost:4445"
-  const HYDRA_PUBLIC_URL = env.VITE_HYDRA_PUBLIC_URL || "http://localhost:4444"
+  const KRATOS_URL = env.VITE_ORY_SDK_URL || "https://api.kratos.nqd.ai"
+  const HYDRA_ADMIN_URL = env.VITE_HYDRA_ADMIN_URL || "https://api.hydra.admin.nqd.ai"
+  const HYDRA_PUBLIC_URL = env.VITE_HYDRA_PUBLIC_URL || "https://api.hydra.nqd.ai"
 
   return {
     plugins: [react()],
