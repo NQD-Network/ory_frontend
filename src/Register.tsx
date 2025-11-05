@@ -31,7 +31,7 @@ export default function Register() {
                 if (flowId) {
                     res = await ory.getRegistrationFlow({ id: flowId })
                 } else {
-                    window.location.href = "/kratos/self-service/registration/browser"
+                    window.location.href = `${basePath}/self-service/registration/browser`
                     return
                 }
                 setFlow(res)
