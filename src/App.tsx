@@ -14,14 +14,11 @@ const HYDRA_USERINFO_URL = import.meta.env.VITE_HYDRA_USERINFO_URL
 const GO_API_BASE = import.meta.env.VITE_GO_API_BASE
 
 try {
-  const refUrl = new URL(document.referrer)
-  const refParams = new URLSearchParams(refUrl.search)
-  const returnTo = refParams.get("return_to")
-
+  const params = new URLSearchParams(window.location.search);
+  const returnTo = params.get("return_to");
   if (returnTo) {
     const decodedReturnTo = decodeURIComponent(returnTo)
     localStorage.setItem("redirect_uri", decodedReturnTo)
-    console.log("✅ Extracted return_to:", decodedReturnTo)
   } else {
     console.log("⚠️ No return_to found in referrer. Using default redirect.")
   }
