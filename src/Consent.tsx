@@ -2,7 +2,7 @@ import { useLocation } from "react-router-dom"
 import { useState, useEffect } from "react"
 import { FrontendApi, Configuration, Session } from "@ory/client-fetch"
 
-const HYDRA_ADMIN_URL = import.meta.env.VITE_HYDRA_ADMIN_URL || "/hydra-admin/admin"
+const HYDRA_ADMIN_URL = import.meta.env.VITE_HYDRA_ADMIN_URL || "https://admin.hydra.api.nqd.ai/admin"
 const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "/kratos"
 
 const ory = new FrontendApi(
