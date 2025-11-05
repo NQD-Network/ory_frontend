@@ -10,7 +10,7 @@ import {
 } from "@ory/client-fetch"
 
 const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "/kratos"
-const HYDRA_ADMIN_URL = "/hydra-admin/admin"
+const HYDRA_ADMIN_URL = import.meta.env.VITE_HYDRA_ADMIN_URL || "https://admin.hydra.api.nqd.ai/admin"
 
 const ory = new FrontendApi(
   new Configuration({
