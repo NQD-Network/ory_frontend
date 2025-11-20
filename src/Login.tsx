@@ -54,8 +54,9 @@ async function addTenantToUser(session: Session | null, newTenantId: string): Pr
       ...currentTraits,
       tenants: [...existingTenants, newTenant],
     }
+
+    const ADD_TENANT_API_URL = import.meta.env.VITE_ADD_TENANT_API_URL || "http://localhost:4000"
     
-    const ADD_TENANT_API_URL = import.meta.env.VITE_ADD_TENANT_API_URL || "http://localhost:5000"
     const response = await fetch(`${ADD_TENANT_API_URL}/api/kratos/add-tenant`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -160,25 +161,25 @@ export default function Login() {
           const success = await addTenantToUser(s, tenant!.tenant_id)
 
           if (success) {
-            
+
             // 🔥 CRITICAL: Clear old OAuth tokens to force generation of new ones
             localStorage.removeItem("access_token")
             localStorage.removeItem("refresh_token")
             localStorage.removeItem("id_token")
-            
+
             // Wait a bit for Kratos to update
             await new Promise(resolve => setTimeout(resolve, 1000))
-            
+
             // Fetch updated session
             try {
               const updatedSession = await ory.toSession()
-              
+
               // Verify tenant was added
               if (userHasAccessToTenant(updatedSession, tenant!.tenant_id)) {
                 setSession(updatedSession)
                 setSessionChecked(true)
                 setIsAddingTenant(false)
-                
+
                 // Redirect to app (which will now generate fresh OAuth tokens)
                 navigate(returnTo)
                 return
@@ -189,10 +190,10 @@ export default function Login() {
               console.error("❌ Failed to fetch updated session:", err)
             }
           } else {
-            
+
             // 🔥 FIX: Store tenant in sessionStorage BEFORE clearing localStorage
             sessionStorage.setItem("logout_target_tenant", tenant!.tenant_id)
-            
+
             // Fallback to logout flow
             logoutTriggered.current = true
             setIsLoggingOut(true)
@@ -336,32 +337,86 @@ export default function Login() {
         },
       })
 
-      // Verify tenant access after login
+      // 🔥 NEW: Check tenant access and attempt to add tenant if missing
       if (!userHasAccessToTenant(result.session, tenant.tenant_id)) {
         const userTenants = getUserTenants(result.session)
 
+        // Show info message
         alert(
-          `🚨 Access Denied!\n\n` +
-          `Your account is registered for: ${userTenants}\n\n` +
-          `You're trying to access: ${tenant.tenant_name}\n\n` +
-          `Please register for this site or use a different account.`
+          `🔄 Adding ${tenant.tenant_name} to your account...\n\n` +
+          `Your current tenants: ${userTenants}\n\n` +
+          `Adding access to: ${tenant.tenant_name}`
         )
 
-        // 🔥 FIX: Store target tenant BEFORE logout
-        sessionStorage.setItem("logout_target_tenant", tenant.tenant_id)
+        // Set loading state
+        setIsAddingTenant(true)
 
-        logoutTriggered.current = true
-        localStorage.clear()
+        // Attempt to add tenant
+        const success = await addTenantToUser(result.session, tenant.tenant_id)
 
-        await ory.createBrowserLogoutFlow().then(({ logout_url }) => {
-          const returnUrl = `/login?tenant_id=${tenant.tenant_id}&return_to=${encodeURIComponent(returnTo)}`
-          window.location.href = `${logout_url}&return_to=${encodeURIComponent(returnUrl)}`
-        })
-        return
+        if (success) {
+          console.log(`✅ Successfully added tenant: ${tenant.tenant_id}`)
+
+          // Clear old OAuth tokens
+          localStorage.removeItem("access_token")
+          localStorage.removeItem("refresh_token")
+          localStorage.removeItem("id_token")
+
+          // Wait for Kratos to update
+          await new Promise(resolve => setTimeout(resolve, 1000))
+
+          // Verify the update
+          try {
+            const updatedSession = await ory.toSession()
+
+            if (userHasAccessToTenant(updatedSession, tenant.tenant_id)) {
+              setSession(updatedSession)
+              setIsAddingTenant(false)
+
+              // Success! Redirect to app
+              window.location.href = returnTo
+              return
+            } else {
+              console.error("❌ Tenant not found in updated session")
+              setIsAddingTenant(false)
+              alert("Failed to verify tenant access. Please try again.")
+              return
+            }
+          } catch (err) {
+            console.error("❌ Failed to fetch updated session:", err)
+            setIsAddingTenant(false)
+            alert("Failed to verify session. Please try again.")
+            return
+          }
+        } else {
+          // Failed to add tenant - fall back to logout flow
+          console.error(`❌ Failed to add tenant: ${tenant.tenant_id}`)
+          setIsAddingTenant(false)
+
+          alert(
+            `🚨 Access Denied!\n\n` +
+            `Your account is registered for: ${userTenants}\n\n` +
+            `You're trying to access: ${tenant.tenant_name}\n\n` +
+            `Unable to add this tenant to your account. Please contact support or register a new account.`
+          )
+
+          // Store target tenant and logout
+          sessionStorage.setItem("logout_target_tenant", tenant.tenant_id)
+          logoutTriggered.current = true
+          localStorage.clear()
+
+          await ory.createBrowserLogoutFlow().then(({ logout_url }) => {
+            const returnUrl = `/login?tenant_id=${tenant.tenant_id}&return_to=${encodeURIComponent(returnTo)}`
+            window.location.href = `${logout_url}&return_to=${encodeURIComponent(returnUrl)}`
+          })
+          return
+        }
       }
 
+      // User has access - proceed normally
       window.location.href = returnTo
     } catch (err: any) {
+      setIsAddingTenant(false)
       alert(err?.response?.data?.ui?.messages?.[0]?.text || "Login failed")
     }
   }
@@ -392,16 +447,16 @@ export default function Login() {
           csrf_token: (csrfNode.attributes as any).value
         },
       })
-      
+
       if (result && 'redirect_browser_to' in result) {
         window.location.href = (result as any).redirect_browser_to
       }
     } catch (err: any) {
-      
+
       if (err.response) {
         try {
           const errorData = await err.response.json()
-          
+
           if (errorData.redirect_browser_to) {
             window.location.href = errorData.redirect_browser_to
             return
@@ -410,7 +465,7 @@ export default function Login() {
           console.error("Failed to parse error:", parseErr)
         }
       }
-      
+
       alert("Failed to initiate Google login. Please try again.")
     }
   }
