@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom"
 import { useState, useEffect } from "react"
 import { FrontendApi, Configuration, Session } from "@ory/client-fetch"
+import { TENANTS } from "./config/tenants.config"
 
 const HYDRA_ADMIN_URL = import.meta.env.VITE_HYDRA_ADMIN_URL || "https://admin.hydra.api.nqd.ai/admin"
 const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "/kratos"
@@ -8,6 +9,20 @@ const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "/kratos"
 const ory = new FrontendApi(
   new Configuration({ basePath: KRATOS_BASE, credentials: "include" })
 )
+
+// 🔥 Check if user has access to tenant
+function userHasAccessToTenant(traits: any, tenantId: string): boolean {
+  if (!traits?.tenants || !Array.isArray(traits.tenants)) {
+    return false
+  }
+  return traits.tenants.some((t: any) => t.tenant_id === tenantId)
+}
+
+// 🔥 Get tenant info for user
+function getUserTenantInfo(traits: any, tenantId: string) {
+  if (!traits?.tenants) return null
+  return traits.tenants.find((t: any) => t.tenant_id === tenantId)
+}
 
 export default function Consent() {
   const location = useLocation()
@@ -37,14 +52,14 @@ export default function Consent() {
     fetchConsent()
   }, [challenge])
 
-  // 🔥 Fetch Kratos session (traits = email, role, projects)
+  // 🔥 Fetch Kratos session
   useEffect(() => {
     const fetchKratos = async () => {
       try {
         const s = await ory.toSession()
         setKratosSession(s)
-      } catch (err) {
-        console.error("No Kratos session:", err)
+      } catch {
+        window.location.href = `/login`
       }
     }
     fetchKratos()
@@ -52,7 +67,70 @@ export default function Consent() {
 
   if (!challenge) return <div>Error: consent_challenge missing</div>
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>
-  if (!consentRequest) return <div>Loading consent request...</div>
+  if (!consentRequest || !kratosSession) return <div>Loading consent request...</div>
+
+  const traits = kratosSession?.identity?.traits || {}
+  const clientId = consentRequest.client?.client_id
+
+  // 🔥 Find matching tenant config
+  const tenantConfig = Object.values(TENANTS).find(t => t.hydra_client_id === clientId)
+
+  // 🔥 Validate tenant access using tenants array
+  if (tenantConfig && !userHasAccessToTenant(traits, tenantConfig.tenant_id)) {
+    const userTenants = traits.tenants?.map((t: any) => t.tenant_id).join(', ') || 'none'
+
+    const forceLogout = async () => {
+      try {
+        const { logout_url } = await ory.createBrowserLogoutFlow()
+        window.location.href = logout_url
+      } catch {
+        window.location.href = `${KRATOS_BASE}/self-service/login/browser`
+      }
+    }
+
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <h1 className="login-title" style={{ color: "red" }}>🚨 Access Denied</h1>
+          <div style={{
+            background: '#ffe0e0',
+            border: '2px solid #ff0000',
+            borderRadius: '8px',
+            padding: '20px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>
+              Tenant Access Denied
+            </p>
+            <p style={{ margin: '0 0 10px 0' }}>
+              Your registered sites: <span style={{ color: '#d63031' }}>{userTenants}</span><br />
+              Requested site: <span style={{ color: '#0984e3' }}>{tenantConfig.tenant_name}</span>
+            </p>
+            <p style={{ margin: 0, fontSize: '14px' }}>
+              You need to register for {tenantConfig.tenant_name} to access it.
+            </p>
+          </div>
+          <button
+            onClick={forceLogout}
+            className="btn-primary"
+            style={{ width: '100%', marginBottom: '10px' }}
+          >
+            Log out
+          </button>
+          <button
+            onClick={() => window.location.href = `/register?tenant_id=${tenantConfig.tenant_id}`}
+            className="btn-secondary"
+            style={{ width: '100%' }}
+          >
+            Register for {tenantConfig.tenant_name}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Get user's role for this tenant
+  const userTenantInfo = getUserTenantInfo(traits, tenantConfig?.tenant_id || '')
 
   const handleConsent = async (accept: boolean) => {
     setLoading(true)
@@ -63,19 +141,24 @@ export default function Consent() {
         ? `${HYDRA_ADMIN_URL}/oauth2/auth/requests/consent/accept?consent_challenge=${challenge}`
         : `${HYDRA_ADMIN_URL}/oauth2/auth/requests/consent/reject?consent_challenge=${challenge}`
 
-      const traits = kratosSession?.identity?.traits || {}
       const body = accept
         ? {
           grant_scope: consentRequest.requested_scope,
           session: {
-            // 🔥 Custom claims forwarded to Hydra
             id_token: {
               email: traits.email,
-              role: traits.role,
+              name: traits.name,
+              role: userTenantInfo?.role || 'user',
+              tenant_id: tenantConfig?.tenant_id,
+              tenants: traits.tenants,
+              primary_tenant: traits.primary_tenant,
             },
             access_token: {
-              projects: traits.projects || [],
-              role: traits.role
+              email: traits.email,
+              role: userTenantInfo?.role || 'user',
+              tenant_id: tenantConfig?.tenant_id,
+              tenants: traits.tenants,
+              primary_tenant: traits.primary_tenant,
             },
           },
         }
@@ -90,7 +173,11 @@ export default function Consent() {
         body: JSON.stringify(body),
       })
 
-      if (!res.ok) throw new Error(`Consent request failed: ${res.statusText}`)
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(`Consent request failed: ${JSON.stringify(errData)}`)
+      }
+
       const data = await res.json()
 
       if (data.redirect_to) {
@@ -107,10 +194,17 @@ export default function Consent() {
   return (
     <div className="login-container">
       <div className="login-card">
+        {tenantConfig && (
+          <img
+            src={tenantConfig.theme.logo_url}
+            alt={tenantConfig.tenant_name}
+            style={{ height: 50, marginBottom: 20 }}
+          />
+        )}
         <h1 className="login-title">Consent Required</h1>
 
         <p>
-          The app <strong>{consentRequest.client.client_name}</strong> is requesting access to:
+          <strong>{consentRequest.client.client_name}</strong> is requesting access to your {tenantConfig?.tenant_name || ''} account:
         </p>
 
         <ul className="scope-list">
@@ -118,6 +212,18 @@ export default function Consent() {
             <li key={scope}>{scope}</li>
           ))}
         </ul>
+
+        <div style={{
+          background: '#f0f0f0',
+          padding: '10px',
+          borderRadius: '5px',
+          marginTop: '15px',
+          fontSize: '14px'
+        }}>
+          <strong>Account:</strong> {traits.email}<br />
+          <strong>Tenant:</strong> {tenantConfig?.tenant_name}<br />
+          <strong>Your Role:</strong> {userTenantInfo?.role || 'user'}
+        </div>
 
         {error && <p className="error-text">⚠ {error}</p>}
 

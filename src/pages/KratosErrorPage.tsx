@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "http://localhost:4433"
+const KRATOS_BASE = import.meta.env.VITE_ORY_SDK_URL || "https://kratos.api.nqd.ai"
 
 type KratosError = {
     id?: string
