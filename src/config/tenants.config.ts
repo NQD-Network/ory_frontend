@@ -51,7 +51,7 @@ export const TENANTS: Record<string, TenantConfig> = {
     allowed_domains: ["localhost:3001","localhost:5173", "nqd.ai"],
     theme: {
       primary_color: "#4F46E5",
-      logo_url: "/nqd-logo.png",
+      logo_url: "/NQD_logo.png",
       favicon_url: "/nqd-favicon.ico",
     },
     features: {
